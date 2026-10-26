@@ -28,7 +28,7 @@ data. Every compliance decision is deterministic Python with cited evidence.
 |---|---|---|
 | 1 | Skeleton, knowledge base, demo data | ✅ done |
 | 2 | Ingestion, extraction, normalisation | ✅ done |
-| 3 | Spec-claim verifier, rule engine, ranking | ⏳ |
+| 3 | Spec-claim verifier, rule engine, ranking | ✅ done |
 | 4 | LangGraph agent loop, FastAPI | ⏳ |
 | 5 | Streamlit approval dashboard | ⏳ |
 | 6 | Deployment and docs | ⏳ |
@@ -97,7 +97,27 @@ schema the LLM returns, so the demo runs with no API key. With `LLM_PROVIDER=gem
 or `groq`, live outputs are validated and saved alongside them as
 `data/cache/<step>_<file-hash>.json`, and those take priority.
 
+## Run the verifier (Part 3)
+
+```bash
+python -m procureiq.evaluate   # every claim labelled, with cited evidence, then ranked
+```
+
+| Vendor | Result |
+|---|---|
+| A | All 9 spec claims VERIFIED → **COMPLIANT, rank 1** |
+| B | Conductor **SUBSTITUTED** (quote wording, 12.1 Ω/km resistance and brand datasheet all say aluminium); ISI licence missing; price 12% below market band → **EXCLUDED** |
+| C | ISI licence read at 0.43 confidence → not judged, read-back; FR claim has no test values → **CONDITIONAL** |
+
+The status of each quote depends only on its mandatory requirements:
+
+- **EXCLUDED** if any mandatory requirement fails (contradicted or substituted).
+- **CONDITIONAL** if no mandatory requirement fails but at least one is unverified. The open items list what proof would resolve it.
+- **COMPLIANT** if every mandatory requirement passes. Only compliant quotes get ranked.
+
+The ranking score is 0.6 × price + 0.2 × delivery + 0.2 × warranty, with a penalty for each unmet preferred requirement. A Pareto flag marks quotes that are non-dominated on price, delivery and warranty.
+
 ## Tech stack
 
 LangGraph · Gemini / Groq (swappable) · pdfplumber, PyMuPDF, Tesseract ·
-pint, rapidfuzz · pandas, scikit-learn · FastAPI · SQLite · Streamlit
+pint, rapidfuzz · pandas · FastAPI · SQLite · Streamlit

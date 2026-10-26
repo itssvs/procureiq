@@ -25,7 +25,6 @@ pyyaml>=6.0
 pint>=0.24
 rapidfuzz>=3.9
 pandas>=2.2
-scikit-learn>=1.5
 
 # --- Demo data generation and tests
 reportlab>=4.2

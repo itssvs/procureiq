@@ -214,3 +214,19 @@ def normalise_quote(vendor_id: str, channel: str, data: dict, source_file: str =
     return Quote(vendor_id=vendor_id, vendor=data.get("vendor", vendor_id), channel=channel,
                  quote_ref=data.get("quote_ref", ""), brand=data.get("brand", ""),
                  fields=fields, source_file=source_file)
+
+
+def apply_updates(quote: Quote, reply_data: dict, source: str = "clarification") -> list[str]:
+    """Merge a vendor's clarification reply into a quote. Returns the keys that changed.
+    Each updated field is tagged with where the new value came from."""
+    update = normalise_quote(quote.vendor_id, quote.channel, reply_data)
+    changed = []
+    for k, f in update.fields.items():
+        if f.value is None:
+            continue
+        old = quote.fields.get(k)
+        if old is None or old.value != f.value or old.confidence < f.confidence:
+            f.flags = [*f.flags, f"updated:{source}"]
+            quote.fields[k] = f
+            changed.append(k)
+    return changed

@@ -1,0 +1,8 @@
+# Normalise text line endings; never touch binary demo files
+* text=auto
+*.pdf binary
+*.png binary
+*.jpg binary
+*.ttf binary
+*.ogg binary
+*.xlsx binary
