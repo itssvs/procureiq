@@ -29,7 +29,7 @@ data. Every compliance decision is deterministic Python with cited evidence.
 | 1 | Skeleton, knowledge base, demo data | ✅ done |
 | 2 | Ingestion, extraction, normalisation | ✅ done |
 | 3 | Spec-claim verifier, rule engine, ranking | ✅ done |
-| 4 | LangGraph agent loop, FastAPI | ⏳ |
+| 4 | LangGraph agent loop, FastAPI | ✅ done |
 | 5 | Streamlit approval dashboard | ⏳ |
 | 6 | Deployment and docs | ⏳ |
 
@@ -107,7 +107,7 @@ python -m procureiq.evaluate   # every claim labelled, with cited evidence, then
 |---|---|
 | A | All 9 spec claims VERIFIED → **COMPLIANT, rank 1** |
 | B | Conductor **SUBSTITUTED** (quote wording, 12.1 Ω/km resistance and brand datasheet all say aluminium); ISI licence missing; price 12% below market band → **EXCLUDED** |
-| C | ISI licence read at 0.43 confidence → not judged, read-back; FR claim has no test values → **CONDITIONAL** |
+| C | ISI licence read at low confidence (< 0.75) → not judged, read-back; FR claim has no test values → **CONDITIONAL** |
 
 The status of each quote depends only on its mandatory requirements:
 
@@ -116,6 +116,34 @@ The status of each quote depends only on its mandatory requirements:
 - **COMPLIANT** if every mandatory requirement passes. Only compliant quotes get ranked.
 
 The ranking score is 0.6 × price + 0.2 × delivery + 0.2 × warranty, with a penalty for each unmet preferred requirement. A Pareto flag marks quotes that are non-dominated on price, delivery and warranty.
+
+## Run the full agent (Part 4)
+
+```bash
+python -m procureiq.agent                  # whole loop + audit trail in the terminal
+uvicorn procureiq.api:app --reload         # API at http://127.0.0.1:8000/docs
+```
+
+The LangGraph state machine (`procureiq/agent/graph.py`) runs these nodes in order:
+
+1. `extract_requirements`
+2. `ingest_quotes`
+3. `verify` (runs claim checks, rules, anomaly checks and ranking)
+4. `decide`, which routes to one of three places:
+   - `clarify`, which loops back to `verify`. There are at most `MAX_CLARIFY_ROUNDS` rounds.
+   - `escalate` to a human, when vendors are silent or the round cap is reached.
+   - `route_for_approval`
+
+In the demo, Vendor C gets a read-back of its misread licence, total and GST, plus a request for its FR test report. Its reply is parsed and merged into the quote, and the re-verify step turns C into **COMPLIANT, rank 2**.
+
+The run then stops at `AWAITING_APPROVAL`. Only a human `POST /runs/{id}/approve` can award, and only to a COMPLIANT quote. Every step, vendor message and decision is written to SQLite (`data/runs/procureiq.db`).
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /runs/demo` | Run the built-in scenario |
+| `POST /runs` | Run on uploaded files (needs a Gemini/Groq key for unseen files) |
+| `GET /runs/{id}` · `/memo` · `/audit` | State, approval memo, audit trail |
+| `POST /runs/{id}/approve` · `/reject` | Human decision |
 
 ## Tech stack
 
