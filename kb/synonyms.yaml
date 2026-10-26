@@ -1,0 +1,34 @@
+# Maps the many ways vendors write a value to one canonical value.
+# The normaliser fuzzy-matches against these lists (rapidfuzz).
+
+conductor_material:
+  copper: [copper, cu, "cu.", tamba, "copper conductor", "electrolytic copper", "ec grade copper"]
+  aluminium: [aluminium, aluminum, al, "al.", "alu", "al 1350", "aluminium conductor"]
+
+insulation:
+  PVC: [pvc, "pvc type a", "pvc type-a", "pvc insulated", "pvc ins"]
+  XLPE: [xlpe, "cross linked polyethylene"]
+
+fire_grade:
+  FR: [fr, "flame retardant", "fire retardant", "f.r.", "fr grade", "fr-grade"]
+  FR-LSH: [frlsh, "fr-lsh", "fr lsh", "low smoke halogen", "lsh"]
+  none: ["non fr", "normal", "standard pvc"]
+
+cores:
+  1: ["single core", "1 core", "1c", "sc", "1-core"]
+  2: ["two core", "2 core", "2c", "twin"]
+
+conductor_class:
+  2: ["class 2", "stranded", "multi strand"]
+  5: ["class 5", "flexible", "multi-strand flexible"]
+
+# Phrases that hide a substitution. Their presence flags a claim for
+# deeper checking against the datasheet.
+equivalence_phrases:
+  - "or equivalent"
+  - "or equiv"
+  - "/equivalent"
+  - "equivalent make"
+  - "similar spec"
+  - "or similar"
+  - "as per availability"

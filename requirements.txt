@@ -1,0 +1,32 @@
+# --- UI and API
+streamlit>=1.38
+fastapi>=0.115
+uvicorn>=0.30
+plotly>=5.22
+
+# --- Agent orchestration
+langgraph>=0.2
+pydantic>=2.7
+
+# --- LLM providers (free tiers); app also runs fully offline in cached mode
+google-genai>=1.0
+groq>=0.11
+python-dotenv>=1.0
+
+# --- Parsing
+pdfplumber>=0.11
+pymupdf>=1.24
+pytesseract>=0.3.10
+pillow>=10.0
+openpyxl>=3.1
+
+# --- Normalising and analytics
+pyyaml>=6.0
+pint>=0.24
+rapidfuzz>=3.9
+pandas>=2.2
+scikit-learn>=1.5
+
+# --- Demo data generation and tests
+reportlab>=4.2
+pytest>=8.0

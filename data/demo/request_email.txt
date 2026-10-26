@@ -1,0 +1,26 @@
+From: R. Karthikeyan <facilities@sunrise-mfg.example>
+To: procurement@sunrise-mfg.example
+Date: Mon, 19 Oct 2026 09:42 +0530
+Subject: Wiring cable needed for Block C retrofit — urgent
+
+Hi team,
+
+We are rewiring the lighting and power circuits in Block C (Ambattur plant)
+and need house wire urgently. Please get quotes.
+
+- 2.5 sq mm single core wire, around 1800 metres. Coils of 90 m are fine,
+  so 20 coils.
+- Copper only please. Last time someone sent aluminium and the electrician
+  refused to use it.
+- 1100 V grade, PVC insulated, should be as per IS 694.
+- Must be ISI marked with a valid licence number, audit will check this.
+- FR (flame retardant) grade is a must, this is a production floor.
+- Stranded conductor (class 2) preferred.
+- We need it on site within 14 days of PO.
+- Warranty of at least 2 years would be good.
+
+Budget is roughly 4.5 lakh but compliance matters more than price.
+
+Thanks,
+Karthikeyan
+Facilities Manager, Sunrise Manufacturing

@@ -1,0 +1,151 @@
+# ProcureIQ knowledge base — LV PVC-insulated building wires
+# ------------------------------------------------------------
+# Every entry is a checkable fact with an id. The verifier cites these ids
+# as evidence. Nothing here is decided by an LLM.
+#
+# NOTE: Standard references describe the general scope of real Indian
+# Standards. Brand datasheets and the certificate registry are FICTIONAL
+# demo data created for this prototype.
+
+category: lv_pvc_building_wire
+version: "0.1-demo"
+
+# ---------------------------------------------------------------- standards
+standards:
+  - id: STD-IS694
+    code: "IS 694:2010"
+    title: PVC insulated (heavy duty) electric cables for working voltages up to and including 1100 V
+    covers:
+      voltage_grade_kv: [0.45, 0.75, 1.1]
+      conductor_material: [copper, aluminium]
+    note: Product standard for PVC building wires; ISI mark is granted against this standard.
+
+  - id: STD-IS8130
+    code: "IS 8130:2013"
+    title: Conductors for insulated electric cables and flexible cords
+    note: Defines conductor classes (1 solid, 2 stranded, 5 flexible) and maximum DC resistance.
+
+  - id: STD-IS10810
+    code: "IS 10810"
+    title: Methods of test for cables (incl. oxygen index, temperature index, flammability)
+    note: Test method referenced for FR / FR-LSH performance claims.
+
+# ------------------------------------------- conductor resistance (IS 8130)
+# Max DC resistance at 20 C, ohm/km. Used to detect material substitution:
+# a copper claim with an aluminium-like resistance is a contradiction.
+conductor_resistance:
+  - id: RES-CU-2.5-C2
+    material: copper
+    size_sqmm: 2.5
+    conductor_class: 2
+    max_ohm_per_km: 7.41
+  - id: RES-CU-2.5-C5
+    material: copper
+    size_sqmm: 2.5
+    conductor_class: 5
+    max_ohm_per_km: 7.98
+  - id: RES-AL-2.5-C2
+    material: aluminium
+    size_sqmm: 2.5
+    conductor_class: 2
+    max_ohm_per_km: 12.1
+
+# ------------------------------------------------ fire performance grades
+fire_grades:
+  - id: FIRE-FR
+    grade: FR
+    name: Flame retardant
+    requires:
+      oxygen_index_min: 29
+      temperature_index_min_c: 250
+    evidence_required: Type test report (oxygen index and temperature index) or datasheet stating both values
+  - id: FIRE-FRLSH
+    grade: FR-LSH
+    name: Flame retardant, low smoke and halogen
+    requires:
+      oxygen_index_min: 29
+      temperature_index_min_c: 250
+      smoke_density_max_pct: 60
+      acid_gas_max_pct: 20
+    evidence_required: Type test report covering all four values
+
+# -------------------------------------------- BIS licence registry (DEMO)
+# Fictional stand-in for an official certificate lookup.
+cert_registry:
+  - id: CERT-4100012345
+    licence_no: CM/L-4100012345
+    holder: Kaveri Cables & Wires Pvt Ltd
+    brand: KaveriFlex
+    standard: "IS 694:2010"
+    status: valid
+    valid_until: "2027-08-31"
+  - id: CERT-4100067890
+    licence_no: CM/L-4100067890
+    holder: Anna Nagar Wire House
+    brand: AnnaWire
+    standard: "IS 694:2010"
+    status: valid
+    valid_until: "2027-03-31"
+  - id: CERT-4100055501
+    licence_no: CM/L-4100055501
+    holder: Coastline Conductors
+    brand: CoastLine
+    standard: "IS 694:2010"
+    status: expired
+    valid_until: "2025-12-31"
+
+# ------------------------------------------------- brand datasheets (DEMO)
+datasheets:
+  - id: DS-KAVERIFLEX-FR-2.5
+    brand: KaveriFlex
+    product: KaveriFlex FR 2.5 sq mm single core
+    conductor_material: copper
+    conductor_class: 2
+    size_sqmm: 2.5
+    cores: 1
+    voltage_grade_kv: 1.1
+    insulation: PVC Type A
+    fire_grade: FR
+    oxygen_index: 30
+    temperature_index_c: 255
+    max_ohm_per_km: 7.41
+    standard: "IS 694:2010"
+    coil_length_m: 90
+
+  - id: DS-ANNAWIRE-2.5
+    brand: AnnaWire
+    product: AnnaWire 2.5 sq mm single core
+    conductor_material: copper
+    conductor_class: 2
+    size_sqmm: 2.5
+    cores: 1
+    voltage_grade_kv: 1.1
+    insulation: PVC Type A
+    fire_grade: null          # datasheet does NOT state FR values -> FR claim needs proof
+    max_ohm_per_km: 7.41
+    standard: "IS 694:2010"
+    coil_length_m: 90
+
+  - id: DS-MARINALITE-2.5
+    brand: MarinaLite
+    product: MarinaLite 2.5 sq mm house wire
+    conductor_material: aluminium
+    conductor_class: 2
+    size_sqmm: 2.5
+    cores: 1
+    voltage_grade_kv: 1.1
+    insulation: PVC
+    fire_grade: FR
+    oxygen_index: 29
+    temperature_index_c: 250
+    max_ohm_per_km: 12.1
+    standard: null            # no ISI licence on record
+    coil_length_m: 90
+
+# ---------------------------------------------- market reference (DEMO)
+# Used by anomaly detection for price-outlier checks.
+market_reference:
+  - id: MKT-CU-FR-2.5-90M
+    item: Copper FR 2.5 sq mm single core, 90 m coil
+    typical_price_inr: [19500, 23500]
+    as_of: "2026-10"

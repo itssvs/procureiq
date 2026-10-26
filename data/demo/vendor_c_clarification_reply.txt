@@ -1,0 +1,24 @@
+From: Anna Nagar Wire House <sales@annawire.example>
+To: procurement@sunrise-mfg.example
+Subject: RE: Clarification on quote AWH/2026/118
+
+Dear Sir,
+
+Thank you for checking. Please note:
+
+1. ISI licence number: our licence is CM/L-4100067890 (not 4100067390).
+
+2. FR grade: type test details for our AnnaWire FR 2.5 sq mm single core
+   cable (batch AW-FR-2610):
+
+     Test report no.   : NABL-TR-26-04417 (tested as per IS 10810)
+     Oxygen index      : 31
+     Temperature index : 260 deg C
+
+3. GST is 18% (not 13%). Rate 22,750 per coil, total 4,55,000 + GST.
+
+All other terms of our quote AWH/2026/118 remain the same.
+
+Regards,
+S. Meenakshi
+Anna Nagar Wire House
