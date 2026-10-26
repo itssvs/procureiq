@@ -1,0 +1,97 @@
+{
+  "vendor": "Kaveri Cables & Wires Pvt Ltd",
+  "quote_ref": "KCW/Q/2026/552",
+  "brand": "KaveriFlex",
+  "fields": {
+    "conductor_material": {
+      "raw": "electrolytic grade copper conductor",
+      "value": "copper",
+      "confidence": 0.98
+    },
+    "size_sqmm": {
+      "raw": "KaveriFlex FR 2.5 sq mm single core",
+      "value": "2.5 sq mm",
+      "confidence": 0.98
+    },
+    "cores": {
+      "raw": "single core",
+      "value": 1,
+      "confidence": 0.98
+    },
+    "voltage_grade_kv": {
+      "raw": "1.1 kV grade",
+      "value": "1.1 kV",
+      "confidence": 0.98
+    },
+    "insulation": {
+      "raw": "PVC insulated (Type A)",
+      "value": "PVC",
+      "confidence": 0.97
+    },
+    "standard": {
+      "raw": "conforming to IS 694:2010",
+      "value": "IS 694:2010",
+      "confidence": 0.98
+    },
+    "isi_licence": {
+      "raw": "ISI marked, licence CM/L-4100012345",
+      "value": "CM/L-4100012345",
+      "confidence": 0.97
+    },
+    "fire_grade": {
+      "raw": "KaveriFlex FR",
+      "value": "FR",
+      "confidence": 0.95
+    },
+    "oxygen_index": {
+      "raw": "oxygen index 30",
+      "value": 30,
+      "confidence": 0.96
+    },
+    "temperature_index_c": {
+      "raw": "temperature index 255 °C",
+      "value": 255,
+      "confidence": 0.96
+    },
+    "conductor_class": {
+      "raw": "Class 2 stranded",
+      "value": 2,
+      "confidence": 0.97
+    },
+    "coil_length_m": {
+      "raw": "90 m coil",
+      "value": "90 m",
+      "confidence": 0.97
+    },
+    "quantity_coils": {
+      "raw": "20 Coil",
+      "value": 20,
+      "confidence": 0.97
+    },
+    "unit_price_inr": {
+      "raw": "21,000.00",
+      "value": 21000,
+      "confidence": 0.98
+    },
+    "total_price_inr": {
+      "raw": "Sub-total 4,20,000.00",
+      "value": 420000,
+      "confidence": 0.98
+    },
+    "gst_pct": {
+      "raw": "GST @ 18%",
+      "value": 18,
+      "confidence": 0.98
+    },
+    "delivery_days": {
+      "raw": "within 10 days from receipt of PO",
+      "value": "10 days",
+      "confidence": 0.95
+    },
+    "warranty_years": {
+      "raw": "3 years against manufacturing defects",
+      "value": "3 years",
+      "confidence": 0.95
+    }
+  }
+}

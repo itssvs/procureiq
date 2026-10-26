@@ -1,0 +1,107 @@
+{
+  "vendor": "Marina Electric Traders",
+  "quote_ref": "WA-19/10/26",
+  "brand": "MarinaLite",
+  "fields": {
+    "conductor_material": {
+      "raw": "2.5 sqmm copper or equivalent FR house wire",
+      "value": "copper",
+      "confidence": 0.9
+    },
+    "conductor_detail": {
+      "raw": "conductor AL 1350 grade class 2",
+      "value": "aluminium (AL 1350)",
+      "confidence": 0.9
+    },
+    "size_sqmm": {
+      "raw": "2.5 sqmm",
+      "value": "2.5 sq mm",
+      "confidence": 0.95
+    },
+    "cores": {
+      "raw": "single core",
+      "value": 1,
+      "confidence": 0.95
+    },
+    "voltage_grade_kv": {
+      "raw": "1100V",
+      "value": "1100 V",
+      "confidence": 0.95
+    },
+    "insulation": {
+      "raw": "PVC ins",
+      "value": "PVC",
+      "confidence": 0.9
+    },
+    "standard": {
+      "raw": "As per IS 694 sir",
+      "value": "IS 694",
+      "confidence": 0.85
+    },
+    "isi_licence": {
+      "raw": "ISI certificate will send later",
+      "value": null,
+      "confidence": 0.9
+    },
+    "fire_grade": {
+      "raw": "FR house wire",
+      "value": "FR",
+      "confidence": 0.85
+    },
+    "oxygen_index": {
+      "raw": "FR OI 29",
+      "value": 29,
+      "confidence": 0.85
+    },
+    "temperature_index_c": {
+      "raw": "TI 250",
+      "value": 250,
+      "confidence": 0.85
+    },
+    "resistance_ohm_per_km": {
+      "raw": "resistance 12.1 ohm/km",
+      "value": 12.1,
+      "confidence": 0.92
+    },
+    "conductor_class": {
+      "raw": "class 2",
+      "value": 2,
+      "confidence": 0.9
+    },
+    "coil_length_m": {
+      "raw": "90 mtr coil",
+      "value": "90 m",
+      "confidence": 0.92
+    },
+    "quantity_coils": {
+      "raw": "20 coils",
+      "value": 20,
+      "confidence": 0.95
+    },
+    "unit_price_inr": {
+      "raw": "Rs 17200/coil",
+      "value": 17200,
+      "confidence": 0.95
+    },
+    "total_price_inr": {
+      "raw": "Rs 3,44,000",
+      "value": 344000,
+      "confidence": 0.95
+    },
+    "gst_pct": {
+      "raw": "GST 18%",
+      "value": 18,
+      "confidence": 0.95
+    },
+    "delivery_days": {
+      "raw": "Delivery 7 days sir, ready stock",
+      "value": "7 days",
+      "confidence": 0.92
+    },
+    "warranty_years": {
+      "raw": "Warranty 1 yr",
+      "value": "1 year",
+      "confidence": 0.92
+    }
+  }
+}

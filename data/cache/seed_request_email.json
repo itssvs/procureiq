@@ -1,0 +1,92 @@
+{
+  "request_id": "REQ-BLOCKC-WIRING",
+  "requester": "R. Karthikeyan, Facilities Manager",
+  "item": "2.5 sq mm single core copper FR house wire for Block C retrofit",
+  "budget_inr": 450000,
+  "requirements": [
+    {
+      "key": "conductor_material",
+      "op": "eq",
+      "value": "copper",
+      "priority": "mandatory",
+      "source_text": "Copper only please."
+    },
+    {
+      "key": "size_sqmm",
+      "op": "eq",
+      "value": 2.5,
+      "priority": "mandatory",
+      "source_text": "2.5 sq mm single core wire"
+    },
+    {
+      "key": "cores",
+      "op": "eq",
+      "value": 1,
+      "priority": "mandatory",
+      "source_text": "single core"
+    },
+    {
+      "key": "voltage_grade_kv",
+      "op": "eq",
+      "value": "1100 V",
+      "priority": "mandatory",
+      "source_text": "1100 V grade"
+    },
+    {
+      "key": "insulation",
+      "op": "eq",
+      "value": "PVC",
+      "priority": "mandatory",
+      "source_text": "PVC insulated"
+    },
+    {
+      "key": "standard",
+      "op": "eq",
+      "value": "IS 694",
+      "priority": "mandatory",
+      "source_text": "should be as per IS 694"
+    },
+    {
+      "key": "isi_licence",
+      "op": "valid_licence",
+      "value": null,
+      "priority": "mandatory",
+      "source_text": "Must be ISI marked with a valid licence number, audit will check this."
+    },
+    {
+      "key": "fire_grade",
+      "op": "proven",
+      "value": "FR",
+      "priority": "mandatory",
+      "source_text": "FR (flame retardant) grade is a must"
+    },
+    {
+      "key": "conductor_class",
+      "op": "eq",
+      "value": 2,
+      "priority": "preferred",
+      "source_text": "Stranded conductor (class 2) preferred."
+    },
+    {
+      "key": "quantity_m",
+      "op": "gte",
+      "value": "1800 m",
+      "priority": "mandatory",
+      "source_text": "around 1800 metres"
+    },
+    {
+      "key": "delivery_days",
+      "op": "lte",
+      "value": "14 days",
+      "priority": "mandatory",
+      "source_text": "We need it on site within 14 days of PO."
+    },
+    {
+      "key": "warranty_years",
+      "op": "gte",
+      "value": "2 years",
+      "priority": "preferred",
+      "source_text": "Warranty of at least 2 years would be good."
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "vendor": "Anna Nagar Wire House",
+  "quote_ref": "AWH/2026/118",
+  "brand": "AnnaWire",
+  "fields": {
+    "isi_licence": {
+      "raw": "our licence is CM/L-4100067890 (not 4100067390)",
+      "value": "CM/L-4100067890",
+      "confidence": 0.98
+    },
+    "fire_grade": {
+      "raw": "AnnaWire FR 2.5 sq mm single core",
+      "value": "FR",
+      "confidence": 0.95
+    },
+    "fr_test_report": {
+      "raw": "NABL-TR-26-04417 (tested as per IS 10810)",
+      "value": "NABL-TR-26-04417",
+      "confidence": 0.97
+    },
+    "oxygen_index": {
+      "raw": "Oxygen index : 31",
+      "value": 31,
+      "confidence": 0.97
+    },
+    "temperature_index_c": {
+      "raw": "Temperature index : 260 deg C",
+      "value": 260,
+      "confidence": 0.97
+    },
+    "gst_pct": {
+      "raw": "GST is 18% (not 13%)",
+      "value": 18,
+      "confidence": 0.98
+    },
+    "unit_price_inr": {
+      "raw": "Rate 22,750 per coil",
+      "value": 22750,
+      "confidence": 0.97
+    },
+    "total_price_inr": {
+      "raw": "total 4,55,000 + GST",
+      "value": 455000,
+      "confidence": 0.97
+    }
+  }
+}

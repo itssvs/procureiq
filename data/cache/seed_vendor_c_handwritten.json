@@ -1,0 +1,87 @@
+{
+  "vendor": "Anna Nagar Wire House",
+  "quote_ref": "AWH/2026/118",
+  "brand": "AnnaWire",
+  "fields": {
+    "conductor_material": {
+      "raw": "AnnaWire 2.5 sq mm IC Copper wire",
+      "value": "copper",
+      "confidence": 0.9
+    },
+    "size_sqmm": {
+      "raw": "AnnaWire 2.5 sq mm IC Copper wire",
+      "value": "2.5 sq mm",
+      "confidence": 0.9
+    },
+    "cores": {
+      "raw": "IC",
+      "value": 1,
+      "confidence": 0.8
+    },
+    "voltage_grade_kv": {
+      "raw": "H00V PVC",
+      "value": "1100 V",
+      "confidence": 0.8
+    },
+    "insulation": {
+      "raw": "H00V PVC, as per IS 694, FR grade",
+      "value": "PVC",
+      "confidence": 0.88
+    },
+    "standard": {
+      "raw": "as per IS 694",
+      "value": "IS 694",
+      "confidence": 0.88
+    },
+    "isi_licence": {
+      "raw": "IS! CM/L-4100067390",
+      "value": "CM/L-4100067390",
+      "confidence": 0.6
+    },
+    "fire_grade": {
+      "raw": "FR grade",
+      "value": "FR",
+      "confidence": 0.88
+    },
+    "conductor_class": {
+      "raw": "Class 2 stranded",
+      "value": 2,
+      "confidence": 0.9
+    },
+    "coil_length_m": {
+      "raw": "90 m coil",
+      "value": "90 m",
+      "confidence": 0.9
+    },
+    "quantity_coils": {
+      "raw": "Qty : 20 coils",
+      "value": 20,
+      "confidence": 0.9
+    },
+    "unit_price_inr": {
+      "raw": "Rate : 22,750 / coil",
+      "value": 22750,
+      "confidence": 0.88
+    },
+    "total_price_inr": {
+      "raw": "Total : 4,5S,000",
+      "value": 455000,
+      "confidence": 0.7
+    },
+    "gst_pct": {
+      "raw": "GST 13%,",
+      "value": 13,
+      "confidence": 0.6
+    },
+    "delivery_days": {
+      "raw": "Delivery : 12 days from PO",
+      "value": "12 days",
+      "confidence": 0.9
+    },
+    "warranty_years": {
+      "raw": "Warranty : 2 yrs",
+      "value": "2 years",
+      "confidence": 0.9
+    }
+  }
+}
