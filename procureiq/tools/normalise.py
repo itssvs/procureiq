@@ -43,6 +43,16 @@ CANONICAL_UNITS = {
 }
 CATEGORICAL = {"conductor_material", "insulation", "fire_grade", "cores", "conductor_class"}
 
+# Plausible ranges in canonical units. A reading outside the range is not trusted
+# (e.g. "H00V" read as 0 V, or 1100 taken as kV when the vendor meant volts).
+PLAUSIBLE = {"size_sqmm": (0.5, 400), "voltage_grade_kv": (0.1, 33), "quantity_m": (1, 100000),
+             "coil_length_m": (5, 2000), "delivery_days": (0, 365), "warranty_years": (0, 25)}
+
+
+def _plausible(key: str, v: Optional[float]) -> bool:
+    lo, hi = PLAUSIBLE.get(key, (float("-inf"), float("inf")))
+    return v is not None and lo <= v <= hi
+
 
 @lru_cache(maxsize=1)
 def synonyms() -> dict:
@@ -78,7 +88,10 @@ def parse_quantity(raw: Any, key: str) -> tuple[Optional[float], float]:
     if raw is None:
         return None, 0.0
     if isinstance(raw, (int, float)):
-        return float(raw), 1.0
+        v = float(raw)
+        if key == "voltage_grade_kv" and v >= 50:      # a bare 1100 means volts
+            v = v / 1000
+        return v, 1.0
     s = str(raw).lower().strip()
     m = re.search(r"(\d[\d,]*(?:\.\d+)?)\s*([a-z°.² ]*)", s)
     if not m:
@@ -91,6 +104,10 @@ def parse_quantity(raw: Any, key: str) -> tuple[Optional[float], float]:
             unit = UNIT_ALIASES[alias]
             break
     if unit is None:
+        if unit_txt == "":                               # bare number: assume canonical unit
+            if key == "voltage_grade_kv" and num >= 50:
+                num = num / 1000
+            return num, 1.0
         return num, 0.7
     try:
         q = ureg.Quantity(num, unit).to(target)
@@ -151,9 +168,20 @@ def normalise_value(key: str, value: Any, raw: Any = None) -> tuple[Any, float]:
     """Canonicalise one spec value. Uses `value` if already clean, else `raw`."""
     src = value if value not in (None, "") else raw
     if key in CANONICAL_UNITS:
-        return parse_quantity(src, key)
-    if key in ("cores", "conductor_class") and isinstance(value, (int, float)):
-        return int(value), 1.0
+        for cand in (raw, value):                        # vendor's words first, then model's reading
+            if cand in (None, ""):
+                continue
+            v, score = parse_quantity(cand, key)
+            if _plausible(key, v):
+                return v, score
+        v, _ = parse_quantity(src, key)
+        return v, 0.3 if v is not None else 0.0          # implausible: forces a read-back
+    if key in ("cores", "conductor_class"):
+        for cand in (value, raw):
+            if isinstance(cand, (int, float)):
+                return int(cand), 1.0
+            if isinstance(cand, str) and re.fullmatch(r"\s*\d\s*", cand):
+                return int(cand), 1.0
     if key in CATEGORICAL:
         # prefer the raw words: they may contain the real material behind a label
         v, s = canon_category(key, raw or value)
@@ -168,7 +196,8 @@ def normalise_value(key: str, value: Any, raw: Any = None) -> tuple[Any, float]:
         return v, 1.0 if v else 0.0
     if key in ("unit_price_inr", "total_price_inr", "resistance_ohm_per_km", "oxygen_index",
                "temperature_index_c", "gst_pct", "quantity_coils"):
-        return parse_number(src), 1.0
+        v = parse_number(value) if value not in (None, "") else None
+        return (v if v is not None else parse_number(raw)), 1.0
     return src, 1.0
 
 
@@ -179,7 +208,7 @@ def normalise_requirements(data: dict) -> RequirementSet:
         val = r.get("value")
         if r.get("op", "eq") not in ("valid_licence", "proven"):
             val, _ = normalise_value(key, val, r.get("source_text"))
-        reqs.append(Requirement(key=key, op=r.get("op", "eq"), value=val,
+        reqs.append(Requirement(key=key, op=r.get("op", "eq"), value=val, via=r.get("via"),
                                 unit=CANONICAL_UNITS.get(key), priority=r.get("priority", "mandatory"),
                                 source_text=r.get("source_text", "")))
     return RequirementSet(request_id=data.get("request_id", "REQ"), requester=data.get("requester", ""),
@@ -196,7 +225,7 @@ def normalise_quote(vendor_id: str, channel: str, data: dict, source_file: str =
         raw = f.get("raw", "")
         value, norm_score = normalise_value(key, f.get("value"), raw)
         conf = float(f.get("confidence", 1.0)) * (norm_score if value is not None else 1.0)
-        if line_confidence and raw:
+        if line_confidence and raw and len(raw.strip()) >= 4:     # cross-check model vs OCR
             hit = process.extractOne(raw, list(line_confidence), scorer=fuzz.partial_ratio)
             if hit and hit[1] >= 80:
                 conf = min(conf, line_confidence[hit[0]])
@@ -206,29 +235,83 @@ def normalise_quote(vendor_id: str, channel: str, data: dict, source_file: str =
         fields[key] = Field_(value=value, unit=CANONICAL_UNITS.get(key), confidence=round(conf, 2),
                              raw=raw, flags=flags)
 
-    # derive total length from coils x coil length when not stated
-    if "quantity_m" not in fields and "quantity_coils" in fields and "coil_length_m" in fields:
-        q, c = fields["quantity_coils"], fields["coil_length_m"]
-        if q.value and c.value:
-            fields["quantity_m"] = Field_(value=q.value * c.value, unit="meter",
-                                          confidence=min(q.confidence, c.confidence),
-                                          raw=f"{q.raw} x {c.raw}", flags=["derived"])
+    _reconcile(fields)
     return Quote(vendor_id=vendor_id, vendor=data.get("vendor", vendor_id), channel=channel,
                  quote_ref=data.get("quote_ref", ""), brand=data.get("brand", ""),
                  fields=fields, source_file=source_file)
 
 
-def apply_updates(quote: Quote, reply_data: dict, source: str = "clarification") -> list[str]:
+def _reconcile(fields: dict[str, Field_]) -> None:
+    """Cross-check numbers against each other (self-consistency), as a buyer would."""
+    coils = fields.get("quantity_coils")
+    n = coils.value if coils and coils.value else None
+    clen = fields.get("coil_length_m")
+    qty = fields.get("quantity_m")
+
+    # a small model often puts one coil's length in the total-length slot
+    if n and n > 1 and qty and qty.value and (clen is None or not clen.value) and qty.value < 500:
+        fields["coil_length_m"] = Field_(value=qty.value, unit="meter", confidence=qty.confidence, raw=qty.raw,
+                                         flags=["interpreted as per-coil length"])
+        clen = fields["coil_length_m"]
+    if n and clen and clen.value:
+        derived = n * clen.value
+        if qty is None or qty.value is None or qty.value in (clen.value,) or qty.value < derived:
+            fields["quantity_m"] = Field_(value=derived, unit="meter",
+                                          confidence=min(coils.confidence, clen.confidence),
+                                          raw=f"{coils.raw} × {clen.raw}", flags=["derived"])
+
+    # total price: pick the reading (model's number or vendor's words) that matches qty × rate
+    tot, rate = fields.get("total_price_inr"), fields.get("unit_price_inr")
+    if tot and rate and n and rate.value:
+        expected = n * rate.value
+        cands = [c for c in (tot.value, parse_number(tot.raw)) if c]
+        best = min(cands, key=lambda c: abs(c - expected), default=None)
+        if best is not None and abs(best - expected) <= 0.01 * expected and best != tot.value:
+            tot.value = best
+            tot.flags = [*tot.flags, "reconciled with qty × rate"]
+
+
+# What each kind of question allows the vendor's reply to change.
+ASK_SCOPE = {
+    "fr": {"fire_grade", "oxygen_index", "temperature_index_c", "fr_test_report"},
+    "licen": {"isi_licence", "standard"},
+    "datasheet": {"conductor_material", "conductor_detail", "resistance_ohm_per_km", "standard"},
+    "resistance": {"conductor_material", "conductor_detail", "resistance_ohm_per_km"},
+}
+
+
+def scope_for(open_items: list[str]) -> set[str]:
+    """Fields a reply may update, given what we asked. Read-backs name their field directly."""
+    keys: set[str] = set()
+    for item in open_items:
+        low = item.lower()
+        m = re.search(r"confirm (\w+)\s*=", item)
+        if m:
+            keys.add(m.group(1))
+        m = re.search(r"confirm (\w+)$", item.strip())
+        if m:
+            keys.add(m.group(1))
+        for word, ks in ASK_SCOPE.items():
+            if word in low:
+                keys |= ks
+    return keys
+
+
+def apply_updates(quote: Quote, reply_data: dict, source: str = "clarification",
+                  allowed: Optional[set[str]] = None) -> list[str]:
     """Merge a vendor's clarification reply into a quote. Returns the keys that changed.
-    Each updated field is tagged with where the new value came from."""
+
+    Only fields in `allowed` (what we actually asked about) can change, so a model that
+    over-extracts from the reply can't overwrite values that were already verified."""
     update = normalise_quote(quote.vendor_id, quote.channel, reply_data)
     changed = []
     for k, f in update.fields.items():
-        if f.value is None:
+        if f.value is None or (allowed is not None and k not in allowed):
             continue
         old = quote.fields.get(k)
         if old is None or old.value != f.value or old.confidence < f.confidence:
             f.flags = [*f.flags, f"updated:{source}"]
             quote.fields[k] = f
             changed.append(k)
+    _reconcile(quote.fields)
     return changed

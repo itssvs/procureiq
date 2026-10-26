@@ -1,0 +1,12 @@
+{
+  "thought": "Message C Anna Nagar Wire House to request the FR type test report.",
+  "tool": "send_clarification",
+  "args": {
+    "vendor_id": "C",
+    "message": "Please provide the Flame-Retardant (FR) type test report (oxygen index, temperature index) for your quote AWH/2026/118. Thank you."
+  },
+  "_meta": {
+    "model": "ollama:qwen2.5:3b",
+    "at": "2026-10-26T17:08:13+00:00"
+  }
+}

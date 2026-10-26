@@ -15,7 +15,7 @@ from procureiq.tools.rules import evaluate  # noqa: E402
 from procureiq.tools.verifier import verify_claim  # noqa: E402
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def demo():
     return ingest_demo()
 

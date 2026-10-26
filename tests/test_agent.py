@@ -13,11 +13,6 @@ from procureiq.agent.vendor_sim import VendorSimulator  # noqa: E402
 from procureiq.api import app  # noqa: E402
 
 
-@pytest.fixture(autouse=True)
-def temp_db(tmp_path, monkeypatch):
-    monkeypatch.setattr(audit, "DB_PATH", tmp_path / "test.db")
-
-
 def statuses(state):
     return {q["vendor_id"]: q["status"] for q in state["evaluation"]["quotes"]}
 

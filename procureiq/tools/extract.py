@@ -20,8 +20,16 @@ from .normalise import normalise_quote, normalise_requirements
 from .parse import ParsedDoc, parse_any
 
 
+TEXT_SUFFIXES = {".txt", ".eml", ".csv", ".md"}
+
+
 def _file_key(prefix: str, path: Path) -> str:
-    digest = hashlib.sha1(Path(path).read_bytes()).hexdigest()[:10]
+    """Cache key from file content. Text files are hashed with normalised line endings so a
+    recording made on Windows (CRLF checkout) replays on Linux (LF) and vice versa."""
+    data = Path(path).read_bytes()
+    if Path(path).suffix.lower() in TEXT_SUFFIXES:
+        data = data.replace(b"\r\n", b"\n")
+    digest = hashlib.sha1(data).hexdigest()[:10]
     return f"{prefix}_{digest}"
 
 
@@ -45,6 +53,8 @@ For each requirement give:
 Use op "valid_licence" for "ISI marked with a valid licence".
 Use op "proven" with value "FR" for a fire grade that must be evidenced.
 Use op "lte" for deadlines ("within 14 days") and "gte" for minimums ("at least").
+Each key appears at most once. "ISI marked / licence" is isi_licence, not insulation.
+"as per IS 694" is standard. "PVC insulated" is insulation.
 
 Also return request_id (short slug), requester, item (one line), budget_inr (number or null).
 
@@ -73,6 +83,9 @@ def _check_requirements(data: dict) -> dict:
         if not isinstance(r, dict):
             continue
         key = str(r.get("key", "")).strip().lower()
+        if r.get("op") == "valid_licence" or ("licen" in str(r.get("source_text", "")).lower()
+                                              and key in ("insulation", "standard")):
+            key = "isi_licence"                     # model filed the licence rule under another key
         if key not in SPEC_KEYS or key in seen:
             continue
         seen.add(key)
@@ -88,13 +101,41 @@ def _check_requirements(data: dict) -> dict:
     return {**{k: data.get(k) for k in ("request_id", "requester", "item", "budget_inr")}, "requirements": clean}
 
 
+# Safety net for requirements a small model merges or drops. Only adds missing keys,
+# never overrides the model, and every addition is marked so it's visible.
+REQ_HINTS = [
+    ("standard", "eq", re.compile(r"\bIS\s*:?\s*(\d{3,5})\b"), lambda m: f"IS {m.group(1)}"),
+    ("isi_licence", "valid_licence", re.compile(r"\bISI\b[^.\n]*licen", re.I), lambda m: None),
+    ("insulation", "eq", re.compile(r"\b(PVC|XLPE)\b", re.I), lambda m: m.group(1).upper()),
+    ("fire_grade", "proven", re.compile(r"\bFR\b|flame[- ]retardant", re.I), lambda m: "FR"),
+]
+PREFERRED_WORDS = re.compile(r"prefer|would be good|ideally|nice to have", re.I)
+
+
+def _requirement_hints(data: dict, text: str) -> dict:
+    have = {r["key"] for r in data["requirements"]}
+    sentences = re.split(r"(?<=[.\n])\s+", text)
+    for key, op, rx, val in REQ_HINTS:
+        if key in have:
+            continue
+        for sent in sentences:
+            m = rx.search(sent)
+            if m:
+                data["requirements"].append({
+                    "key": key, "op": op, "value": val(m), "source_text": sent.strip()[:300], "via": "rules",
+                    "priority": "preferred" if PREFERRED_WORDS.search(sent) else "mandatory"})
+                break
+    return data
+
+
 def extract_requirements(path: Path) -> tuple[RequirementSet, str]:
     doc = parse_any(path, "email")
     keys = "\n".join(f"  {k}: {v}" for k, v in SPEC_KEYS.items())
     data, source = extract_json(REQ_PROMPT.format(keys=keys, text=doc.text),
                                 cache_key=_file_key("requirements", path),
                                 validator=_check_requirements, seed_key=_seed_key(path))
-    return normalise_requirements(data), source
+    data = _check_requirements(data)                # also repairs recorded outputs on replay
+    return normalise_requirements(_requirement_hints(data, doc.text)), source
 
 
 # --------------------------------------------------------------------- quotes
@@ -112,6 +153,9 @@ Rules:
 - Lower the confidence when text is unclear, OCR looks garbled, or digits may be misread.
 - If the conductor is described twice (e.g. "copper or equivalent" and later "AL 1350"),
   put the first in conductor_material and the second in conductor_detail.
+- Keep units in value as written ("1100 V", "90 m", "12 days", "2 yrs").
+- quantity_m is the TOTAL length of the whole order. One coil's length goes in coil_length_m.
+- Indian numbers: "3,44,000" = 344000 and "4.2 L" = 420000.
 
 Also return vendor (company name), quote_ref, brand.
 
@@ -125,6 +169,8 @@ QUOTATION ({channel}):
 
 
 ALLOWED = set(SPEC_KEYS) | set(EVIDENCE_KEYS)
+FILLER = {"n/a", "na", "none", "null", "-", "--", "not mentioned", "not specified", "not stated",
+          "unknown", "not available", "nil", ""}
 
 
 def _check_quote(data: dict) -> dict:
@@ -139,6 +185,8 @@ def _check_quote(data: dict) -> dict:
             continue
         if not isinstance(f, dict):
             f = {"raw": str(f), "value": f, "confidence": 0.8}
+        if str(f.get("value", "")).strip().lower() in FILLER and str(f.get("raw", "")).strip().lower() in FILLER:
+            continue                                   # model filler, not a vendor claim
         try:
             conf = min(max(float(f.get("confidence", 0.8)), 0.0), 1.0)
         except (TypeError, ValueError):
@@ -182,7 +230,7 @@ def extract_quote(vendor_id: str, path: Path, channel: str) -> tuple[Quote, Pars
                                 cache_key=_file_key(f"quote_{vendor_id}", path),
                                 image_path=image, validator=_check_quote,
                                 seed_key=_seed_key(path))
-    data = _apply_hints(data, doc.text)
+    data = _apply_hints(_check_quote(data), doc.text)
     quote = normalise_quote(vendor_id, channel, data, source_file=path.name,
                             line_confidence=doc.line_confidence or None)
     return quote, doc, source

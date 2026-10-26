@@ -13,11 +13,6 @@ from procureiq.config import ROOT  # noqa: E402
 APP = str(ROOT / "app.py")
 
 
-@pytest.fixture(autouse=True)
-def temp_db(tmp_path, monkeypatch):
-    monkeypatch.setattr(audit, "DB_PATH", tmp_path / "dash.db")
-
-
 def test_dashboard_run_and_approve():
     at = AppTest.from_file(APP, default_timeout=90).run()
     assert not at.exception

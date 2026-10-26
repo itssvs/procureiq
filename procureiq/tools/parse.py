@@ -65,7 +65,14 @@ def parse_text(path: Path, channel: str = "email") -> ParsedDoc:
 
 
 def parse_image(path: Path) -> ParsedDoc:
-    """OCR a photo. Returns text and a confidence per line (0..1)."""
+    """OCR a photo. Returns text and a confidence per line (0..1).
+
+    OCR=off skips Tesseract, so a run recorded on a machine without it (e.g. Windows)
+    replays identically everywhere."""
+    import os
+
+    if os.getenv("OCR", "auto").lower() == "off":
+        return ParsedDoc(text="", channel="photo", quality=0.0, notes=["OCR disabled; vision model reads the image"])
     try:
         import pytesseract
         from PIL import Image, ImageOps

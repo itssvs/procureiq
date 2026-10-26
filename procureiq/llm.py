@@ -155,6 +155,14 @@ def extract_json(prompt: str, cache_key: str, image_path: Optional[Path] = None,
     prov = provider()
     errors: list[str] = []
 
+    # PREFER_RECORDED=1: reuse an earlier real model output for this exact input when one
+    # exists, and only call the model for steps never recorded (saves minutes on a CPU).
+    if os.getenv("PREFER_RECORDED") == "1" and prov in PROVIDERS:
+        rec = load_cached(cache_key)
+        if rec is not None and rec.get(META):
+            meta = rec.pop(META)
+            return rec, f"recorded {meta['model']}"
+
     if prov in PROVIDERS:
         for attempt in range(retries + 1):
             try:

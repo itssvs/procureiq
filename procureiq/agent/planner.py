@@ -24,7 +24,7 @@ from .. import audit, kb
 from ..llm import extract_json
 from ..schemas import Quote, RequirementSet
 from ..tools.extract import extract_reply
-from ..tools.normalise import apply_updates
+from ..tools.normalise import apply_updates, scope_for
 from ..tools.rules import Evaluation, QuoteEvaluation
 from .vendor_sim import LABELS, VendorSimulator, draft_clarification
 
@@ -37,6 +37,8 @@ then ask each such vendor precisely for what is missing, or escalate to a human.
 Never contact an EXCLUDED vendor: it failed a mandatory requirement and clarification cannot fix that.
 Write vendor messages that suit the channel: WhatsApp = short, warm, Indian business English;
 email or handwritten letter = polite and formal. Quote the exact value you read when asking for a read-back.
+Address the vendor by company name and mention their quote reference. Ask for each item in plain words.
+Never mention internal words like CONDITIONAL, EXCLUDED, verifier or tool names to a vendor.
 Reply with exactly one JSON object: {"thought": "<one sentence>", "tool": "<tool name>", "args": {...}}"""
 
 PROMPT = """TOOLS
@@ -49,6 +51,14 @@ STEPS SO FAR
 {history}
 
 Choose the single next tool call. When every CONDITIONAL vendor has been messaged or escalated, call finish."""
+
+
+def _plain(item: str) -> str:
+    """Open item in words a vendor would understand."""
+    if item.startswith("Read-back:"):
+        key, _, val = item.split("confirm", 1)[1].strip().partition("=")
+        return f'confirm {LABELS.get(key.strip(), key.strip().replace("_", " "))} (we read "{val.strip()}")'
+    return item.removeprefix("Request ").replace("FR type test report", "the FR (flame-retardant) type test report")
 
 
 class Planner:
@@ -82,7 +92,8 @@ class Planner:
             q = self.quotes[e.vendor_id]
             line = f"- {e.vendor_id} {e.vendor} [{e.status}] channel={q.channel} brand={q.brand or '?'}"
             if e.status == "CONDITIONAL":
-                line += "\n    open: " + "; ".join(e.open_items)
+                line += f"\n    quote ref: {q.quote_ref or '-'}"
+                line += "\n    needs: " + "; ".join(_plain(it) for it in e.open_items)
                 flags = [a.message for a in e.anomalies if a.severity != "info"]
                 if flags:
                     line += "\n    anomalies: " + "; ".join(flags)
@@ -168,7 +179,7 @@ class Planner:
             self.history_entries.append(entry)
             return "message delivered; no reply from vendor"
         data, src = extract_reply(q.vendor_id, reply_path)
-        changed = apply_updates(q, data, source=f"clarification_r{self.round}")
+        changed = apply_updates(q, data, source=f"clarification_r{self.round}", allowed=scope_for(e.open_items))
         self.changed_any |= bool(changed)
         entry["reply"] = reply_path.read_text(encoding="utf-8")
         entry["changed"] = changed
@@ -205,7 +216,14 @@ class Planner:
         """Run the agent loop. Returns False if no model (live or recorded) was available."""
         tools_txt = "\n".join(f"- {desc}" for _, desc in self.tools.values())
         seen_calls: set[str] = set()
+        refusals = 0
         for _ in range(MAX_STEPS):
+            if self.trace and not self._pending():         # everyone handled: round is complete
+                audit.log(self.run_id, "8_agent", "All vendors needing clarification handled; round complete")
+                break
+            if refusals >= 2:                              # model is stuck; guardrail takes over
+                audit.log(self.run_id, "8_agent", "Agent repeated refused calls; stopping and handing over to rules")
+                break
             prompt = PROMPT.format(tools=tools_txt, round=self.round, situation=self.situation(),
                                    history=self._history_text())
             key = "agent_" + hashlib.sha1((SYSTEM + prompt).encode()).hexdigest()[:16]
@@ -226,6 +244,7 @@ class Planner:
                     obs = fn(**step["args"])
                 except TypeError as err:
                     obs = f"error: bad arguments ({err})"
+            refusals = refusals + 1 if isinstance(obs, str) and obs.startswith(("refused", "error")) else 0
             self.trace.append({**step, "observation": obs, "source": src, "round": self.round})
             audit.log(self.run_id, "8_agent", f"{step['tool']}({', '.join(f'{k}={v}' for k, v in step['args'].items())[:160]})"
                       + (f" — {step['thought']}" if step["thought"] else ""), data={"observation": obs, "model": src})

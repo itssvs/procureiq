@@ -24,6 +24,7 @@ class Requirement(BaseModel):
     unit: Optional[str] = None
     priority: Priority = "mandatory"
     source_text: str = ""          # the words in the email this came from
+    via: Optional[str] = None      # "rules" when added by the safety net, not the model
 
 
 class RequirementSet(BaseModel):

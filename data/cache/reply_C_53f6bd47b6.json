@@ -1,0 +1,66 @@
+{
+  "vendor": "Anna Nagar Wire House",
+  "quote_ref": "AWH/2026/118",
+  "brand": "AnnaWire",
+  "fields": {
+    "conductor_material": {
+      "raw": "copper",
+      "value": "copper",
+      "confidence": 0.8
+    },
+    "size_sqmm": {
+      "raw": "2.5",
+      "value": "2.5",
+      "confidence": 0.8
+    },
+    "cores": {
+      "raw": "1",
+      "value": "1",
+      "confidence": 0.8
+    },
+    "voltage_grade_kv": {
+      "raw": "2.5",
+      "value": "2.5",
+      "confidence": 0.8
+    },
+    "insulation": {
+      "raw": "NABL-TR-26-04417 (tested as per IS 10810)",
+      "value": "NABL-TR-26-04417 (tested as per IS 10810)",
+      "confidence": 0.8
+    },
+    "fire_grade": {
+      "raw": "FR",
+      "value": "FR",
+      "confidence": 0.8
+    },
+    "coil_length_m": {
+      "raw": "1",
+      "value": "1",
+      "confidence": 0.8
+    },
+    "quantity_coils": {
+      "raw": "1",
+      "value": "1",
+      "confidence": 0.8
+    },
+    "unit_price_inr": {
+      "raw": "22750",
+      "value": "22750",
+      "confidence": 0.8
+    },
+    "total_price_inr": {
+      "raw": "455000",
+      "value": "455000",
+      "confidence": 0.8
+    },
+    "gst_pct": {
+      "raw": "18",
+      "value": "18",
+      "confidence": 0.8
+    }
+  },
+  "_meta": {
+    "model": "ollama:qwen2.5:3b",
+    "at": "2026-10-26T17:15:00+00:00"
+  }
+}
