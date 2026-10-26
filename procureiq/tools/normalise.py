@@ -201,6 +201,8 @@ def normalise_quote(vendor_id: str, channel: str, data: dict, source_file: str =
             if hit and hit[1] >= 80:
                 conf = min(conf, line_confidence[hit[0]])
         flags = ["equivalence_clause"] if equivalence_flag(raw) else []
+        if f.get("via"):
+            flags.append(f"via:{f['via']}")
         fields[key] = Field_(value=value, unit=CANONICAL_UNITS.get(key), confidence=round(conf, 2),
                              raw=raw, flags=flags)
 

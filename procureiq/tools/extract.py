@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -58,11 +59,33 @@ PURCHASE REQUEST:
 ---"""
 
 
-def _check_requirements(data: dict) -> None:
-    assert isinstance(data.get("requirements"), list) and data["requirements"], "no requirements"
-    for r in data["requirements"]:
-        assert r.get("key") in SPEC_KEYS, f"unknown key {r.get('key')}"
-        assert r.get("priority") in ("mandatory", "preferred"), "bad priority"
+OPS = {"eq", "gte", "lte", "valid_licence", "proven"}
+
+
+def _check_requirements(data: dict) -> dict:
+    """Clean a model's requirement list. Small models drift, so we repair rather than reject:
+    unknown keys are dropped, bad priorities default to mandatory, duplicates are merged."""
+    items = data.get("requirements")
+    if not isinstance(items, list):
+        raise ValueError("no requirements list")
+    clean, seen = [], set()
+    for r in items:
+        if not isinstance(r, dict):
+            continue
+        key = str(r.get("key", "")).strip().lower()
+        if key not in SPEC_KEYS or key in seen:
+            continue
+        seen.add(key)
+        op = r.get("op") if r.get("op") in OPS else ("valid_licence" if key == "isi_licence" else "eq")
+        if key == "fire_grade" and op == "eq":
+            op = "proven"
+        pr = str(r.get("priority", "")).lower()
+        clean.append({"key": key, "op": op, "value": r.get("value"),
+                      "priority": pr if pr in ("mandatory", "preferred") else "mandatory",
+                      "source_text": str(r.get("source_text", ""))[:300]})
+    if len(clean) < 5:
+        raise ValueError(f"only {len(clean)} usable requirements")
+    return {**{k: data.get(k) for k in ("request_id", "requester", "item", "budget_inr")}, "requirements": clean}
 
 
 def extract_requirements(path: Path) -> tuple[RequirementSet, str]:
@@ -101,13 +124,52 @@ QUOTATION ({channel}):
 ---"""
 
 
-def _check_quote(data: dict) -> None:
+ALLOWED = set(SPEC_KEYS) | set(EVIDENCE_KEYS)
+
+
+def _check_quote(data: dict) -> dict:
+    """Clean a model's quote extraction: accept flat values, drop unknown keys, clamp confidence."""
     fields = data.get("fields")
-    assert isinstance(fields, dict) and fields, "no fields"
-    allowed = set(SPEC_KEYS) | set(EVIDENCE_KEYS)
+    if not isinstance(fields, dict):           # model put fields at the top level
+        fields = {k: v for k, v in data.items() if k in ALLOWED}
+    clean = {}
     for k, f in fields.items():
-        assert k in allowed, f"unknown field {k}"
-        assert 0 <= float(f.get("confidence", 1)) <= 1, "confidence out of range"
+        k = str(k).strip().lower()
+        if k not in ALLOWED or f in (None, "", {}):
+            continue
+        if not isinstance(f, dict):
+            f = {"raw": str(f), "value": f, "confidence": 0.8}
+        try:
+            conf = min(max(float(f.get("confidence", 0.8)), 0.0), 1.0)
+        except (TypeError, ValueError):
+            conf = 0.8
+        clean[k] = {"raw": str(f.get("raw") or f.get("value") or ""), "value": f.get("value"), "confidence": conf}
+    if len(clean) < 3:
+        raise ValueError(f"only {len(clean)} usable fields")
+    return {"vendor": data.get("vendor", ""), "quote_ref": data.get("quote_ref", ""),
+            "brand": data.get("brand", ""), "fields": clean}
+
+
+# Regex safety net: critical evidence a small model sometimes drops. Only fills gaps,
+# never overrides the model, and is marked so the dashboard can show it.
+HINTS = {
+    "isi_licence": re.compile(r"(CM\s*/\s*L\s*-?\s*\d{10})", re.I),
+    "resistance_ohm_per_km": re.compile(r"(\d+(?:\.\d+)?)\s*(?:ohm|Ω)\s*/\s*km", re.I),
+    "oxygen_index": re.compile(r"(?:oxygen index|\bOI\b)\s*[:\-]?\s*(\d{2})", re.I),
+    "temperature_index_c": re.compile(r"(?:temperature index|\bTI\b)\s*[:\-]?\s*(\d{3})", re.I),
+    "fr_test_report": re.compile(r"((?:NABL|TR)[-\w]*-\d{3,})", re.I),
+}
+
+
+def _apply_hints(data: dict, text: str) -> dict:
+    fields = data.setdefault("fields", {})
+    for key, rx in HINTS.items():
+        if key in fields and fields[key].get("value") not in (None, ""):
+            continue
+        m = rx.search(text or "")
+        if m:
+            fields[key] = {"raw": m.group(0), "value": m.group(1), "confidence": 0.7, "via": "regex"}
+    return data
 
 
 def extract_quote(vendor_id: str, path: Path, channel: str) -> tuple[Quote, ParsedDoc, str]:
@@ -120,6 +182,7 @@ def extract_quote(vendor_id: str, path: Path, channel: str) -> tuple[Quote, Pars
                                 cache_key=_file_key(f"quote_{vendor_id}", path),
                                 image_path=image, validator=_check_quote,
                                 seed_key=_seed_key(path))
+    data = _apply_hints(data, doc.text)
     quote = normalise_quote(vendor_id, channel, data, source_file=path.name,
                             line_confidence=doc.line_confidence or None)
     return quote, doc, source
@@ -129,9 +192,10 @@ def extract_reply(vendor_id: str, path: Path) -> tuple[dict, str]:
     """Read a vendor's clarification reply into field updates (same schema as quotes)."""
     doc = parse_any(Path(path), "email")
     keys = "\n".join(f"  {k}: {v}" for k, v in {**SPEC_KEYS, **EVIDENCE_KEYS}.items())
-    return extract_json(QUOTE_PROMPT.format(keys=keys, channel="clarification reply", text=doc.text),
-                        cache_key=_file_key(f"reply_{vendor_id}", path), validator=_check_quote,
-                        seed_key=_seed_key(path))
+    data, src = extract_json(QUOTE_PROMPT.format(keys=keys, channel="clarification reply", text=doc.text),
+                             cache_key=_file_key(f"reply_{vendor_id}", path), validator=_check_quote,
+                             seed_key=_seed_key(path))
+    return _apply_hints(data, doc.text), src
 
 
 def dump(obj) -> str:

@@ -30,7 +30,7 @@ def parse_pdf(path: Path) -> ParsedDoc:
         with pdfplumber.open(path) as pdf:
             text = "\n".join(p.extract_text() or "" for p in pdf.pages)
     except Exception:
-        import fitz  # PyMuPDF
+        import pymupdf as fitz  # PyMuPDF
 
         with fitz.open(path) as doc:
             text = "\n".join(page.get_text() for page in doc)

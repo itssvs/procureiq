@@ -30,7 +30,7 @@ data. Every compliance decision is deterministic Python with cited evidence.
 | 2 | Ingestion, extraction, normalisation | ✅ done |
 | 3 | Spec-claim verifier, rule engine, ranking | ✅ done |
 | 4 | LangGraph agent loop, FastAPI | ✅ done |
-| 5 | Streamlit approval dashboard | ⏳ |
+| 5 | Streamlit approval dashboard | ✅ done |
 | 6 | Deployment and docs | ⏳ |
 
 ## Repository layout
@@ -74,13 +74,34 @@ python scripts/generate_demo_data.py
 Tesseract OCR (optional, used only as a fallback for photos):
 Windows installer from the UB Mannheim build; Linux `apt install tesseract-ocr`.
 
-## LLM providers (all free)
+## Where the AI is
 
-Set `LLM_PROVIDER` in `.env`:
+ProcureIQ runs a **local open-weight model** (Qwen2.5 3B through [Ollama](https://ollama.com)) by default. It's free, needs no API key, and procurement data never leaves the machine. Gemini or Groq can be switched in with one line in `.env`.
 
-- `cached` — no key, uses saved outputs in `data/cache/` (default, demo-safe)
-- `gemini` — free key from Google AI Studio; also reads the handwritten photo
-- `groq` — free key from console.groq.com
+| The model does (proposes) | Deterministic code does (decides) |
+|---|---|
+| Reads the buyer email into 12 tagged requirements | Unit/synonym normalisation (pint, rapidfuzz) |
+| Reads each quote (PDF, WhatsApp, **handwritten photo via Qwen2.5-VL**) into claims with confidence | Every compliance verdict, with cited evidence |
+| **Plans step 8 as a tool-using agent:** chooses which tools to call (`check_licence`, `lookup_datasheet`, `inspect_field`, `send_clarification`, `escalate`, `finish`) and writes each vendor message in that vendor's tone | Guardrails: may only contact CONDITIONAL vendors, a checklist of every open item is appended by code, skipped vendors are handled by rule, and repeated calls and the step count are capped |
+| Reads the vendor's free-text reply into field updates | Re-verification, ranking, the human approval gate |
+
+Every model output is schema-checked and repaired (small models drift), with a regex safety net for licence numbers and test values. Each output is saved with the model that produced it. The dashboard and CLI label every AI step honestly:
+
+- `ollama:qwen2.5:3b`: live
+- `recorded ollama:qwen2.5:3b`: replay of a real earlier run
+- `seed`: the hand-written placeholder used before any model has run
+
+### Setup for the local model
+
+```bash
+# install Ollama from https://ollama.com/download, then:
+ollama pull qwen2.5:3b        # text + agent planning (~2 GB)
+ollama pull qwen2.5vl:3b      # reads the handwritten photo (~3 GB)
+cp .env.example .env          # LLM_PROVIDER=ollama
+python -m procureiq.agent     # full run; prints which model produced each step
+```
+
+In the dashboard, the **Live model** toggle runs the model now. On a laptop CPU this takes minutes. With the toggle off, the dashboard replays the last recorded run instantly, which is what the hosted demo does.
 
 ## Run the ingestion step (Part 2)
 
@@ -92,10 +113,7 @@ python -m pytest -q
 Every field carries a confidence score (LLM self-report × normalisation score ×
 OCR line confidence for photos). Fields under 0.75 go to vendor read-back.
 
-**About `data/cache/seed_*.json`:** these are seed outputs written in the exact
-schema the LLM returns, so the demo runs with no API key. With `LLM_PROVIDER=gemini`
-or `groq`, live outputs are validated and saved alongside them as
-`data/cache/<step>_<file-hash>.json`, and those take priority.
+**About `data/cache/`:** `seed_*.json` are hand-written placeholders in the exact schema the model returns, so the project runs even before any model is installed. Live outputs are saved next to them as `<step>_<hash>.json`, tagged with the model that produced them, and take priority over the seeds.
 
 ## Run the verifier (Part 3)
 
@@ -145,7 +163,24 @@ The run then stops at `AWAITING_APPROVAL`. Only a human `POST /runs/{id}/approve
 | `GET /runs/{id}` · `/memo` · `/audit` | State, approval memo, audit trail |
 | `POST /runs/{id}/approve` · `/reject` | Human decision |
 
+## Approval dashboard (Part 5)
+
+```bash
+streamlit run app.py          # opens http://localhost:8501
+```
+
+Press **▶ Run agent** in the sidebar. The dashboard has six tabs:
+
+- **Decision:** the shortlist, a price vs delivery chart, and the human approval form. Only COMPLIANT quotes can be selected. It also shows why each excluded quote was excluded, with evidence, plus the anomalies.
+- **Claim verification:** a requirement × vendor matrix with the four labels, and the full evidence trail for every claim.
+- **Clarifications:** what the agent sent, what the vendor replied, the fields that were updated, and each vendor's status before and after.
+- **Quotes:** the original input (PDF, chat or photo) next to the extracted fields and their confidence bars.
+- **Requirements:** the buyer email next to the 12 extracted specs.
+- **Audit log:** every step, vendor message and human decision.
+
+Turn off **"Vendor C answers clarification"** in the sidebar to see the agent escalate an unresolved quote to a human instead.
+
 ## Tech stack
 
-LangGraph · Gemini / Groq (swappable) · pdfplumber, PyMuPDF, Tesseract ·
+LangGraph · Qwen2.5 3B / Qwen2.5-VL 3B via Ollama (local) · Gemini / Groq (optional) · pdfplumber, PyMuPDF, Tesseract ·
 pint, rapidfuzz · pandas · FastAPI · SQLite · Streamlit

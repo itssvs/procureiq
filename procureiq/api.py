@@ -25,7 +25,8 @@ from pydantic import BaseModel
 
 from . import __version__, audit
 from .agent import graph
-from .config import DATA_DIR, LLM_PROVIDER
+from .config import DATA_DIR
+from .llm import provider
 
 app = FastAPI(title="ProcureIQ", version=__version__,
               description="Autonomous requirement-to-quotation procurement agent. "
@@ -57,7 +58,7 @@ def _get(run_id: str) -> dict:
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "version": __version__, "llm_provider": LLM_PROVIDER}
+    return {"status": "ok", "version": __version__, "llm_provider": provider()}
 
 
 @app.post("/runs/demo")

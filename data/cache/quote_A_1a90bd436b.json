@@ -1,0 +1,106 @@
+{
+  "vendor": "Kaveri Cables & Wires Pvt Ltd",
+  "quote_ref": "KCW/Q/2026/552",
+  "brand": "KaveriFlex",
+  "fields": {
+    "conductor_material": {
+      "raw": "electrolytic grade copper",
+      "value": "electrolytic grade copper",
+      "confidence": 0.8
+    },
+    "size_sqmm": {
+      "raw": "2.5",
+      "value": "2.5",
+      "confidence": 0.8
+    },
+    "cores": {
+      "raw": "1",
+      "value": "1",
+      "confidence": 0.8
+    },
+    "voltage_grade_kv": {
+      "raw": "1.1",
+      "value": "1.1",
+      "confidence": 0.8
+    },
+    "insulation": {
+      "raw": "PVC Type A",
+      "value": "PVC Type A",
+      "confidence": 0.8
+    },
+    "standard": {
+      "raw": "IS 694:2010",
+      "value": "IS 694:2010",
+      "confidence": 0.8
+    },
+    "isi_licence": {
+      "raw": "CM/L-4100012345",
+      "value": "CM/L-4100012345",
+      "confidence": 0.8
+    },
+    "fire_grade": {
+      "raw": "FR",
+      "value": "FR",
+      "confidence": 0.8
+    },
+    "conductor_class": {
+      "raw": "2 (stranded)",
+      "value": "2 (stranded)",
+      "confidence": 0.8
+    },
+    "quantity_m": {
+      "raw": "90",
+      "value": "90",
+      "confidence": 0.8
+    },
+    "delivery_days": {
+      "raw": "10",
+      "value": "10",
+      "confidence": 0.8
+    },
+    "warranty_years": {
+      "raw": "3",
+      "value": "3",
+      "confidence": 0.8
+    },
+    "oxygen_index": {
+      "raw": "30",
+      "value": "30",
+      "confidence": 0.8
+    },
+    "temperature_index_c": {
+      "raw": "255",
+      "value": "255",
+      "confidence": 0.8
+    },
+    "coil_length_m": {
+      "raw": "90",
+      "value": "90",
+      "confidence": 0.8
+    },
+    "quantity_coils": {
+      "raw": "20",
+      "value": "20",
+      "confidence": 0.8
+    },
+    "unit_price_inr": {
+      "raw": "21000.00",
+      "value": "21000.00",
+      "confidence": 0.8
+    },
+    "total_price_inr": {
+      "raw": "420000.00",
+      "value": "420000.00",
+      "confidence": 0.8
+    },
+    "gst_pct": {
+      "raw": "18",
+      "value": "18",
+      "confidence": 0.8
+    }
+  },
+  "_meta": {
+    "model": "ollama:qwen2.5:3b",
+    "at": "2026-10-26T16:46:39+00:00"
+  }
+}

@@ -27,7 +27,8 @@ from ..schemas import Quote, RequirementSet
 from ..tools.extract import extract_quote, extract_reply, extract_requirements
 from ..tools.normalise import apply_updates
 from ..tools.rules import Evaluation, evaluate
-from .vendor_sim import VendorSimulator, draft_clarification
+from .planner import Planner, rules_only_round
+from .vendor_sim import VendorSimulator
 
 
 class AgentState(TypedDict, total=False):
@@ -36,10 +37,12 @@ class AgentState(TypedDict, total=False):
     requirements: dict
     quotes: list[dict]
     evaluation: dict
+    initial_evaluation: dict
     round: int
     max_rounds: int
     silent: list[str]                 # vendors that did not answer
     clarifications: list[dict]        # history of messages and replies
+    agent_trace: list[dict]           # the planner's thought / tool / observation steps
     escalations: list[str]
     memo: dict
     status: str
@@ -105,14 +108,18 @@ def node_verify(s: AgentState) -> dict:
         for a in e.anomalies:
             if a.severity != "info":
                 audit.log(s["run_id"], "7_anomaly", f"{e.vendor_id}: {a.code} — {a.message}")
-    audit.save_state(s["run_id"], {**s, "evaluation": ev.model_dump()})
-    return {"evaluation": ev.model_dump()}
+    out = {"evaluation": ev.model_dump()}
+    if rnd == 0:
+        out["initial_evaluation"] = out["evaluation"]     # kept for before/after views
+    audit.save_state(s["run_id"], {**s, **out})
+    return out
 
 
 def decide(s: AgentState) -> str:
     ev = _eval(s)
-    pending = [e.vendor_id for e in ev.quotes
-               if e.status == "CONDITIONAL" and e.vendor_id not in s.get("silent", [])]
+    escalated = {x.split()[0] for x in s.get("escalations", [])}
+    pending = [e.vendor_id for e in ev.quotes if e.status == "CONDITIONAL"
+               and e.vendor_id not in s.get("silent", []) and e.vendor_id not in escalated]
     unresolved = [e.vendor_id for e in ev.quotes if e.status == "CONDITIONAL"]
     if pending and s.get("round", 0) < s.get("max_rounds", MAX_CLARIFY_ROUNDS):
         return "clarify"
@@ -125,37 +132,25 @@ def make_clarify_node(sim: VendorSimulator):
     def node_clarify(s: AgentState) -> dict:
         rnd = s.get("round", 0) + 1
         ev = _eval(s)
-        quotes = _quotes(s)
-        by_id = {q.vendor_id: q for q in quotes}
+        quotes = {q.vendor_id: q for q in _quotes(s)}
         silent = list(s.get("silent", []))
-        history = list(s.get("clarifications", []))
-        sources = dict(s.get("sources", {}))
 
-        for e in ev.quotes:
-            if e.status != "CONDITIONAL" or e.vendor_id in silent:
-                continue
-            q = by_id[e.vendor_id]
-            msg = draft_clarification(q, e, rnd)
-            audit.log(s["run_id"], "8_clarify", f"Round {rnd}: sent {len(e.open_items)} question(s) to "
-                      f"{q.vendor}", data={"message": msg})
-            entry = {"round": rnd, "vendor_id": q.vendor_id, "vendor": q.vendor, "sent": msg,
-                     "reply": None, "changed": []}
-            reply_path = sim.send(q.vendor_id, msg)
-            if reply_path is None:
-                silent.append(q.vendor_id)
-                audit.log(s["run_id"], "8_clarify", f"{q.vendor} did not reply", actor=f"vendor:{q.vendor_id}")
-            else:
-                data, src = extract_reply(q.vendor_id, reply_path)
-                changed = apply_updates(q, data, source=f"clarification_r{rnd}")
-                sources[f"reply_{q.vendor_id}_r{rnd}"] = src
-                entry["reply"] = Path(reply_path).read_text(encoding="utf-8")
-                entry["changed"] = changed
-                audit.log(s["run_id"], "8_clarify", f"Reply received; updated {', '.join(changed) or 'nothing'}",
-                          actor=f"vendor:{q.vendor_id}",
-                          data={k: q.fields[k].value for k in changed})
-            history.append(entry)
-        return {"round": rnd, "quotes": [q.model_dump() for q in quotes], "silent": silent,
-                "clarifications": history, "sources": sources}
+        planner = Planner(s["run_id"], rnd, _reqs(s), quotes, ev, sim, silent)
+        if not planner.run():                                  # no model live or recorded
+            planner = rules_only_round(s["run_id"], rnd, quotes, ev, sim, silent)
+
+        sources = dict(s.get("sources", {}))
+        models = sorted({t["source"] for t in planner.trace})
+        sources[f"agent_r{rnd}"] = ", ".join(models)
+        for h in planner.history_entries:
+            if h.get("reply_source"):
+                sources[f"reply_{h['vendor_id']}_r{rnd}"] = h["reply_source"]
+        return {"round": rnd, "quotes": [q.model_dump() for q in quotes.values()], "silent": planner.silent,
+                "clarifications": list(s.get("clarifications", [])) + planner.history_entries,
+                "agent_trace": list(s.get("agent_trace", [])) + planner.trace,
+                "escalations": list(s.get("escalations", [])) +
+                [f"{v} {quotes[v].vendor}" for v, how in planner.handled.items() if how == "escalated"],
+                "sources": sources}
     return node_clarify
 
 
@@ -164,7 +159,7 @@ def node_escalate(s: AgentState) -> dict:
     names = [f"{e.vendor_id} {e.vendor}" for e in ev.quotes if e.status == "CONDITIONAL"]
     audit.log(s["run_id"], "8_escalate", f"Unresolved after {s.get('round', 0)} round(s): "
               f"{', '.join(names)} → manual review")
-    return {"escalations": names}
+    return {"escalations": sorted(set(s.get("escalations", [])) | set(names))}
 
 
 def build_memo(s: AgentState) -> dict:
@@ -240,7 +235,8 @@ def run(inputs: Optional[dict] = None, sim: Optional[VendorSimulator] = None,
     audit.log(run_id, "0_start", "Run started", data={"max_rounds": max_rounds})
     graph = build_graph(sim)
     return graph.invoke({"run_id": run_id, "inputs": inputs or demo_inputs(), "round": 0,
-                         "max_rounds": max_rounds, "silent": [], "clarifications": [], "sources": {}},
+                         "max_rounds": max_rounds, "silent": [], "clarifications": [], "agent_trace": [],
+                         "escalations": [], "sources": {}},
                         {"recursion_limit": 50})
 
 

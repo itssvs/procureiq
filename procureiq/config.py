@@ -17,7 +17,7 @@ DATA_DIR = ROOT / "data"
 DEMO_DIR = DATA_DIR / "demo"
 CACHE_DIR = DATA_DIR / "cache"
 
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "cached").lower()
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "cached").lower()   # read live via llm.provider()
 MAX_CLARIFY_ROUNDS = int(os.getenv("MAX_CLARIFY_ROUNDS", "3"))
 
 # Demo scenario: which file belongs to which vendor

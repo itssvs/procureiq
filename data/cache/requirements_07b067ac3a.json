@@ -1,0 +1,82 @@
+{
+  "request_id": "WIRING_CABLE_19102026",
+  "requester": "facilities@sunrise-mfg.example",
+  "item": "Wiring cable for Block C retrofit",
+  "budget_inr": 450000,
+  "requirements": [
+    {
+      "key": "conductor_material",
+      "op": "eq",
+      "value": "copper",
+      "priority": "mandatory",
+      "source_text": "Copper only please. Last time someone sent aluminium and the electrician refused to use it."
+    },
+    {
+      "key": "size_sqmm",
+      "op": "eq",
+      "value": "2.5",
+      "priority": "mandatory",
+      "source_text": "2.5 sq mm single core wire, around 1800 metres. Coils of 90 m are fine, so 20 coils."
+    },
+    {
+      "key": "cores",
+      "op": "eq",
+      "value": "1",
+      "priority": "mandatory",
+      "source_text": "2.5 sq mm single core wire, around 1800 metres. Coils of 90 m are fine, so 20 coils."
+    },
+    {
+      "key": "voltage_grade_kv",
+      "op": "eq",
+      "value": "1.1",
+      "priority": "mandatory",
+      "source_text": "1100 V grade"
+    },
+    {
+      "key": "insulation",
+      "op": "valid_licence",
+      "value": "ISI marked with a valid licence number",
+      "priority": "mandatory",
+      "source_text": "ISI marked with a valid licence number, audit will check this."
+    },
+    {
+      "key": "fire_grade",
+      "op": "proven",
+      "value": "FR",
+      "priority": "mandatory",
+      "source_text": "FR (flame retardant) grade is a must, this is a production floor."
+    },
+    {
+      "key": "conductor_class",
+      "op": "eq",
+      "value": "2",
+      "priority": "preferred",
+      "source_text": "Stranded conductor (class 2) preferred."
+    },
+    {
+      "key": "quantity_m",
+      "op": "gte",
+      "value": "1800",
+      "priority": "mandatory",
+      "source_text": "1800 metres"
+    },
+    {
+      "key": "delivery_days",
+      "op": "lte",
+      "value": "14",
+      "priority": "mandatory",
+      "source_text": "on site within 14 days of PO"
+    },
+    {
+      "key": "warranty_years",
+      "op": "gte",
+      "value": "2",
+      "priority": "preferred",
+      "source_text": "Warranty of at least 2 years would be good."
+    }
+  ],
+  "_meta": {
+    "model": "ollama:qwen2.5:3b",
+    "at": "2026-10-26T16:45:29+00:00"
+  }
+}

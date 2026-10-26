@@ -1,0 +1,91 @@
+{
+  "vendor": "MarinaLite",
+  "quote_ref": "Block C wiring",
+  "brand": "MarinaLite",
+  "fields": {
+    "conductor_material": {
+      "raw": "copper or equivalent",
+      "value": "copper",
+      "confidence": 0.9
+    },
+    "size_sqmm": {
+      "raw": "2.5 sqmm",
+      "value": 2.5,
+      "confidence": 0.9
+    },
+    "cores": {
+      "raw": "single core",
+      "value": 1,
+      "confidence": 0.9
+    },
+    "voltage_grade_kv": {
+      "raw": "1100V",
+      "value": 1100,
+      "confidence": 0.9
+    },
+    "insulation": {
+      "raw": "PVC ins",
+      "value": "PVC",
+      "confidence": 0.9
+    },
+    "standard": {
+      "raw": "As per IS 694 sir",
+      "value": "IS 694",
+      "confidence": 0.9
+    },
+    "conductor_class": {
+      "raw": "class 2",
+      "value": "2",
+      "confidence": 0.9
+    },
+    "resistance_ohm_per_km": {
+      "raw": "resistance 12.1 ohm/km",
+      "value": 12.1,
+      "confidence": 0.9
+    },
+    "fire_grade": {
+      "raw": "FR",
+      "value": "FR",
+      "confidence": 0.9
+    },
+    "coil_length_m": {
+      "raw": "90 mtr coil",
+      "value": 90,
+      "confidence": 0.9
+    },
+    "quantity_coils": {
+      "raw": "20 coils",
+      "value": 20,
+      "confidence": 0.9
+    },
+    "unit_price_inr": {
+      "raw": "Rs 17200/coil",
+      "value": 17200,
+      "confidence": 0.9
+    },
+    "total_price_inr": {
+      "raw": "Rs 3,44,000",
+      "value": 34400,
+      "confidence": 0.9
+    },
+    "gst_pct": {
+      "raw": "18%",
+      "value": 18,
+      "confidence": 0.9
+    },
+    "delivery_days": {
+      "raw": "7 days sir",
+      "value": 7,
+      "confidence": 0.9
+    },
+    "warranty_years": {
+      "raw": "1 yr",
+      "value": 1,
+      "confidence": 0.9
+    }
+  },
+  "_meta": {
+    "model": "ollama:qwen2.5:3b",
+    "at": "2026-10-26T16:48:02+00:00"
+  }
+}
