@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import html
 import os
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -122,26 +123,18 @@ with st.sidebar:
         live = st.toggle(f"Live model ({configured})", value=False,
                          help="On: the model reads every document and plans the agent's actions now "
                               "(minutes on a laptop CPU). Off: replay the last recorded model run instantly.")
-    if st.button("▶  Run agent", type="primary", width="stretch"):
-        sim = VendorSimulator() if vendor_c_replies else VendorSimulator(replies={})
-        os.environ["LLM_PROVIDER"] = configured if live else "cached"
-        try:
-            with st.spinner("Model is reading documents and planning… (a few minutes on CPU)" if live
-                            else "Extracting → verifying → clarifying → ranking…"):
-                state = graph.run(sim=sim, max_rounds=max_rounds)
-        finally:
-            os.environ["LLM_PROVIDER"] = configured
-        st.session_state["run_id"] = state["run_id"]
-        st.rerun()
+    run_clicked = st.button("▶  Run agent", type="primary", width="stretch")
 
     runs = audit.list_runs(15)
     if runs:
         st.divider()
-        ids = [r["run_id"] for r in runs]
-        current = st.session_state.get("run_id", ids[0])
-        pick = st.selectbox("Past runs", ids, index=ids.index(current) if current in ids else 0,
-                            format_func=lambda r: f"{r[4:]} · {next(x['status'] for x in runs if x['run_id'] == r)}")
-        st.session_state["run_id"] = pick
+        with st.expander(f"Past runs ({len(runs)})"):
+            ids = [r["run_id"] for r in runs]
+            pick = st.selectbox("Open a past run", ids, index=None, placeholder="Choose a run",
+                                format_func=lambda r: f"{r[4:]} · {next(x['status'] for x in runs if x['run_id'] == r)}")
+            if pick and pick != st.session_state.get("run_id"):
+                st.session_state["run_id"] = pick
+                st.rerun()
     st.divider()
     prov = configured
     if prov == "ollama":
@@ -159,22 +152,81 @@ with st.sidebar:
         st.caption(f"🧠 LLM provider: **{prov}**" + (" (replaying recorded model outputs)" if prov == "cached" else ""))
     st.caption("The model reads and plans; deterministic rules give every verdict. The agent never auto-awards.")
 
+STEP_NAMES = {"extract_requirements": "Reading the buyer's email", "ingest_quotes": "Reading the 3 vendor quotes",
+              "verify": "Verifying every claim against the knowledge base", "clarify": "Agent handling open issues",
+              "escalate": "Escalating unresolved vendors", "route_for_approval": "Writing the approval memo"}
+
+
+def run_with_progress(sim, max_rounds, use_live):
+    """Run the agent and stream each step's audit events into a status box."""
+    os.environ["LLM_PROVIDER"] = configured if use_live else "cached"
+    shown = {"n": 0}
+    box = st.status("Agent running…", expanded=True)
+
+    def on_step(node, rid):
+        evs = audit.events(rid)
+        box.markdown(f"**{STEP_NAMES.get(node, node)}**")
+        for e in evs[shown["n"]:]:
+            if e["step"] == "0_start":
+                continue
+            who = "🏭 " if e["actor"].startswith("vendor") else ("👤 " if e["actor"].startswith("human") else "")
+            box.markdown(f"<div class='piq-ev'>{who}<code>{esc(e['step'])}</code> {esc(e['message'][:180])}</div>",
+                         unsafe_allow_html=True)
+        shown["n"] = len(evs)
+        time.sleep(0.35)                     # pacing so a person can follow; the work itself is done
+
+    try:
+        state = graph.run(sim=sim, max_rounds=max_rounds, on_step=on_step)
+    finally:
+        os.environ["LLM_PROVIDER"] = configured
+    box.update(label=f"Done: {state['memo']['summary'][:90]}…", state="complete", expanded=False)
+    return state
+
+
+if run_clicked:
+    st.session_state["run_id"] = run_with_progress(
+        VendorSimulator() if vendor_c_replies else VendorSimulator(replies={}), max_rounds, live)["run_id"]
+    st.rerun()
+
 run_id = st.session_state.get("run_id")
+REPLAY = configured == "cached"
 if not run_id:
     st.title("ProcureIQ")
-    st.markdown("#### Autonomous requirement-to-quotation procurement agent")
+    st.markdown("#### Not the cheapest quote. The cheapest quote that actually meets the spec.")
     st.markdown(
-        "ProcureIQ reads a buyer's request, collects vendor quotes from any channel, and checks "
-        "**every vendor claim against evidence before price is considered**. Each claim gets one label:")
+        "An AI procurement agent that reads a buyer's request and vendor quotes from messy channels, "
+        "checks **every vendor claim against evidence before price is considered**, chases missing proof "
+        "from vendors, and hands a human an evidence-backed shortlist. Every claim gets one label:")
     st.markdown(" ".join(badge(lbl) for lbl in LABEL_STYLE), unsafe_allow_html=True)
     st.markdown("")
-    st.info("Press **▶ Run agent** in the sidebar to process the demo scenario.")
-    c1, c2 = st.columns(2)
-    c1.markdown("**Buyer request**")
-    c1.code(DEMO_REQUEST.read_text(encoding="utf-8"), language=None, wrap_lines=True)
-    c2.markdown("**Incoming quotes**")
-    for vid, info in DEMO_QUOTES.items():
-        c2.markdown(f"- **{vid}** · {info['vendor']} — *{info['channel']}* (`{info['file'].name}`)")
+    c = st.columns(4)
+    for col, (n, head, body) in zip(c, [
+        ("1", "Read", "A local model (Qwen2.5 3B) reads the email; a vision model (Qwen2.5-VL) reads the handwritten quote."),
+        ("2", "Verify", "Deterministic code checks each claim against standards, datasheets and the BIS registry."),
+        ("3", "Clarify", "A tool-using agent decides whom to ask for what, writes the message, and reads the reply."),
+        ("4", "Approve", "Only compliant quotes are ranked. A human approves; the agent never awards.")]):
+        col.markdown(f'<div class="piq-banner"><b>{n} · {head}</b><br><span class="piq-sub">{body}</span></div>',
+                     unsafe_allow_html=True)
+    st.info("**Press ▶ Run agent** in the sidebar to process the inputs below. Then open **Try it yourself** "
+            "to change a vendor's claim and watch the verdicts change.")
+    if REPLAY:
+        st.caption("ℹ️ This free host has no GPU, so the **model's text outputs are replayed** from a real run of "
+                   "Qwen2.5 on a laptop (each is labelled *recorded run*). Everything else (verification, rules, "
+                   "anomaly checks, the agent loop, guardrails, ranking, approval) **executes on every run**. "
+                   "To run the model live, see the README (Ollama, ~8 min on CPU).")
+
+    st.markdown("##### The inputs")
+    t = st.tabs(["Buyer email", "A · PDF quote", "B · WhatsApp chat", "C · Handwritten photo"])
+    t[0].code(DEMO_REQUEST.read_text(encoding="utf-8"), language=None, wrap_lines=True)
+    try:
+        import pymupdf as fitz
+
+        with fitz.open(DEMO_QUOTES["A"]["file"]) as doc:
+            t[1].image(doc[0].get_pixmap(dpi=100).tobytes("png"), width=700)
+    except Exception:
+        t[1].caption("(PDF preview unavailable)")
+    t[2].code(DEMO_QUOTES["B"]["file"].read_text(encoding="utf-8"), language=None, wrap_lines=True)
+    t[3].image(str(DEMO_QUOTES["C"]["file"]), width=520)
     st.stop()
 
 row = audit.get_run(run_id)
@@ -226,7 +278,7 @@ if rec:
 else:
     st.error("No quote meets all mandatory requirements. See escalations and decide manually.")
 
-tabs = st.tabs(["Decision", "Claim verification", "Clarifications", "Quotes", "Requirements", "Audit log"])
+tabs = st.tabs(["Decision", "Claim verification", "Clarifications", "Try it yourself", "Quotes", "Requirements", "Audit log"])
 
 # ------------------------------------------------------------------ Decision
 with tabs[0]:
@@ -401,8 +453,89 @@ with tabs[2]:
     if memo["escalations"]:
         st.warning("Escalated: " + ", ".join(memo["escalations"]))
 
-# ------------------------------------------------------------------ Quotes
+# ------------------------------------------------------------------ Try it yourself
 with tabs[3]:
+    import copy as _copy
+
+    from procureiq.schemas import Quote, RequirementSet
+    from procureiq.tools.normalise import equivalence_flag, normalise_value
+    from procureiq.tools.rules import evaluate as _evaluate
+
+    st.markdown("Change what a vendor claimed and the **real verifier and rule engine re-run right here**. "
+                "No model or recording is involved in this tab, so the result is computed live.")
+    PRESETS = {
+        "Vendor A's ISI licence is actually expired": ("A", "isi_licence", "CM/L-4100055501"),
+        "Vendor C promises delivery in 20 days": ("C", "delivery_days", "20 days"),
+        "Vendor B drops the words “or equivalent”": ("B", "conductor_material", "2.5 sqmm copper FR house wire"),
+        "Vendor A's total doesn't match qty × rate": ("A", "total_price_inr", "Rs 4,02,000"),
+        "Vendor B sends a valid-looking licence (another firm's)": ("B", "isi_licence", "CM/L-4100012345"),
+    }
+    EDITABLE = ["conductor_material", "isi_licence", "voltage_grade_kv", "fire_grade", "oxygen_index",
+                "temperature_index_c", "delivery_days", "warranty_years", "unit_price_inr", "total_price_inr",
+                "resistance_ohm_per_km", "quantity_coils"]
+
+    left, right = st.columns([2, 3], gap="large")
+    with left:
+        preset = st.radio("Pick a scenario", list(PRESETS) + ["Custom edit"], index=0)
+        if preset == "Custom edit":
+            vid_e = st.selectbox("Vendor", list(quotes), format_func=lambda v: f"{v} · {quotes[v]['vendor']}")
+            key_e = st.selectbox("Claim", EDITABLE, format_func=lambda k: SPEC_NAMES.get(k, k))
+            cur = quotes[vid_e]["fields"].get(key_e, {}).get("raw", "")
+            val_e = st.text_input("Vendor now says", value=cur)
+        else:
+            vid_e, key_e, val_e = PRESETS[preset]
+            st.markdown(f"**{quotes[vid_e]['vendor']}** · {SPEC_NAMES.get(key_e, key_e)} → `{val_e}`")
+        go_btn = st.button("Re-verify with this change", type="primary")
+
+    with right:
+        if go_btn:
+            q_after = _copy.deepcopy(state["quotes"])
+            q = next(x for x in q_after if x["vendor_id"] == vid_e)
+            value, _ = normalise_value(key_e, None, val_e)
+            q["fields"][key_e] = {"value": value, "unit": None, "confidence": 0.95, "raw": val_e,
+                                  "flags": (["equivalence_clause"] if equivalence_flag(val_e) else []) + ["edited in Try it"]}
+            if key_e == "conductor_material" and not equivalence_flag(val_e):
+                q["fields"].pop("conductor_detail", None)
+            rs = RequirementSet.model_validate(reqs)
+            ev2 = _evaluate(rs, [Quote.model_validate(x) for x in q_after]).model_dump()
+            before = {e["vendor_id"]: e for e in ev["quotes"]}
+            after = {e["vendor_id"]: e for e in ev2["quotes"]}
+            st.markdown("##### Result")
+            rows = []
+            for v in after:
+                b, a = before[v], after[v]
+                rows.append({"Vendor": f"{v} · {a['vendor']}",
+                             "Before": b["status"] + (f" · rank {b['rank']}" if b["rank"] else ""),
+                             "After": a["status"] + (f" · rank {a['rank']}" if a["rank"] else ""),
+                             "Changed": "◀" if (b["status"], b["rank"]) != (a["status"], a["rank"]) else ""})
+            st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+            b_claims = {c["key"]: c for c in before[vid_e]["claims"]}
+            changed = [c for c in after[vid_e]["claims"] if b_claims[c["key"]]["label"] != c["label"]]
+            for c in changed:
+                st.markdown(f'{badge(b_claims[c["key"]]["label"])} → {badge(c["label"])} '
+                            f'<b>{esc(SPEC_NAMES.get(c["key"], c["key"]))}</b><br>'
+                            f'<span class="piq-sub">{esc(c["reason"])}</span>', unsafe_allow_html=True)
+                for evd in c["evidence"][1:]:
+                    st.markdown(f'<div class="piq-ev"><code>{esc(evd["id"])}</code> {esc(evd["text"])}</div>',
+                                unsafe_allow_html=True)
+            new_rules = {r["key"]: r for r in after[vid_e]["rules"] if r["label"] is None}
+            for k, r in new_rules.items():
+                old = next(x for x in before[vid_e]["rules"] if x["key"] == k)
+                if old["outcome"] != r["outcome"]:
+                    st.markdown(f"**{SPEC_NAMES.get(k, k)}**: {old['outcome'].upper()} → {r['outcome'].upper()} "
+                                f"<span class='piq-sub'>({esc(r['detail'])})</span>", unsafe_allow_html=True)
+            new_anoms = {a["code"] for a in after[vid_e]["anomalies"]} - {a["code"] for a in before[vid_e]["anomalies"]}
+            for a in after[vid_e]["anomalies"]:
+                if a["code"] in new_anoms:
+                    st.markdown(f'<div class="piq-ev">⚑ new anomaly <b>{esc(a["code"])}</b> — {esc(a["message"])}</div>',
+                                unsafe_allow_html=True)
+            st.markdown(f"<span class='piq-sub'>New summary: {esc(ev2['summary'])}</span>", unsafe_allow_html=True)
+            st.caption("This is a sandbox: the recorded run and the approval decision are not changed.")
+        else:
+            st.caption("Pick a scenario and press **Re-verify**.")
+
+# ------------------------------------------------------------------ Quotes
+with tabs[4]:
     sel = st.radio("Vendor", list(quotes), horizontal=True,
                    format_func=lambda v: f"{v} · {quotes[v]['vendor']} ({quotes[v]['channel']})")
     q = quotes[sel]
@@ -437,7 +570,7 @@ with tabs[3]:
                    "`updated:clarification_r1` marks values corrected by the vendor's reply.")
 
 # ------------------------------------------------------------------ Requirements
-with tabs[4]:
+with tabs[5]:
     a, b = st.columns([2, 3], gap="large")
     with a:
         st.markdown("**Buyer request (input)**")
@@ -452,7 +585,7 @@ with tabs[4]:
             hide_index=True, width="stretch", height=480)
 
 # ------------------------------------------------------------------ Audit
-with tabs[5]:
+with tabs[6]:
     evs = audit.events(run_id)
     st.dataframe(pd.DataFrame([{"Time (UTC)": e["ts"][11:19], "Step": e["step"], "Actor": e["actor"],
                                 "Event": e["message"]} for e in evs]),

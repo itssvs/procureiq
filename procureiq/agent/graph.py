@@ -230,14 +230,23 @@ def demo_inputs() -> dict:
 
 
 def run(inputs: Optional[dict] = None, sim: Optional[VendorSimulator] = None,
-        max_rounds: int = MAX_CLARIFY_ROUNDS) -> AgentState:
+        max_rounds: int = MAX_CLARIFY_ROUNDS, on_step=None) -> AgentState:
+    """Run the graph. `on_step(node_name, run_id)` is called after every node, so a UI can
+    show progress while the agent works."""
     run_id = audit.new_run()
     audit.log(run_id, "0_start", "Run started", data={"max_rounds": max_rounds})
     graph = build_graph(sim)
-    return graph.invoke({"run_id": run_id, "inputs": inputs or demo_inputs(), "round": 0,
-                         "max_rounds": max_rounds, "silent": [], "clarifications": [], "agent_trace": [],
-                         "escalations": [], "sources": {}},
-                        {"recursion_limit": 50})
+    init = {"run_id": run_id, "inputs": inputs or demo_inputs(), "round": 0,
+            "max_rounds": max_rounds, "silent": [], "clarifications": [], "agent_trace": [],
+            "escalations": [], "sources": {}}
+    final: dict = init
+    for mode, chunk in graph.stream(init, {"recursion_limit": 50}, stream_mode=["updates", "values"]):
+        if mode == "values":
+            final = chunk
+        elif on_step:
+            for node in chunk:
+                on_step(node, run_id)
+    return final
 
 
 # ------------------------------------------------------------- human gate

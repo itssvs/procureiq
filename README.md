@@ -16,6 +16,8 @@ Every claim gets exactly one label:
 | ❌ **CONTRADICTED** | Claim conflicts with a standard, datasheet or registry entry |
 | ⚠️ **SUBSTITUTED** | "Or equivalent" wording hides a different material, rating or certification |
 
+**▶ Live demo: [procureiq-v.streamlit.app](https://procureiq-v.streamlit.app/)**, which replays a recorded run of the local Qwen models. Press **Run agent**.
+
 ## Quick start (no setup beyond Python)
 
 ```bash
@@ -139,6 +141,8 @@ python -m pytest -q                     # 32 tests
 - **Quotes:** the original input next to the extracted fields and their confidence bars.
 - **Requirements:** the buyer email next to the extracted specs.
 - **Audit log:** every step, message and decision.
+
+**Try it yourself** changes a vendor's claim (for example, giving Vendor A an expired licence) and re-runs the real verifier and rules live. No model or recording is involved in that tab.
 
 Switch off **"Vendor C answers clarification"** to watch the agent escalate a silent vendor to a human.
 
